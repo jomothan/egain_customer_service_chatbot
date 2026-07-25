@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>eGain TrackBot — Lost Package Assistant</title>
+<style>
+  :root{
+    --navy:#0B3D62;
+    --navy-light:#E8F1FA;
+    --teal:#12879B;
+    --green:#1E7A34;
+    --green-bg:#EAF7EE;
+    --red:#C0392B;
+    --red-bg:#FDECEA;
+    --amber:#B7791F;
+    --amber-bg:#FFF6E5;
+    --bg:#F4F7FA;
+    --bubble-user:#0B3D62;
+    --bubble-bot:#FFFFFF;
+    --text:#1A202C;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:linear-gradient(135deg,#0B3D62 0%,#12879B 100%);
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+  }
+  .phone{
+    width:420px;
+    max-width:100%;
+    height:720px;
+    background:var(--bg);
+    border-radius:24px;
+    box-shadow:0 30px 60px rgba(0,0,0,0.35);
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+  }
+  header{
+    background:var(--navy);
+    color:#fff;
+    padding:16px 18px;
+    display:flex;
+    align-items:center;
+    gap:12px;
+  }
+  header .avatar{
+    width:38px;height:38px;border-radius:50%;
+    background:var(--teal);
+    display:flex;align-items:center;justify-content:center;
+    font-size:18px;
+  }
+  header .info h1{margin:0;font-size:15px;}
+  header .info p{margin:0;font-size:11.5px;opacity:0.8;display:flex;align-items:center;gap:5px;}
+  header .info p::before{content:"";width:7px;height:7px;border-radius:50%;background:#4ADE80;display:inline-block;}
+
+  #chat{
+    flex:1;
+    overflow-y:auto;
+    padding:16px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  .row{display:flex;}
+  .row.user{justify-content:flex-end;}
+  .row.bot{justify-content:flex-start;}
+  .bubble{
+    max-width:82%;
+    padding:10px 13px;
+    border-radius:16px;
+    font-size:13.5px;
+    line-height:1.45;
+    white-space:pre-wrap;
+    animation:pop .18s ease;
+  }
+  @keyframes pop{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+  .row.user .bubble{background:var(--bubble-user);color:#fff;border-bottom-right-radius:4px;}
+  .row.bot .bubble{background:var(--bubble-bot);color:var(--text);border:1px solid #E2E8F0;border-bottom-left-radius:4px;box-shadow:0 1px 2px rgba(0,0,0,0.04);}
+  .row.bot .bubble.error{background:var(--red-bg);border-color:#F5C6C0;color:#7B241C;}
+  .row.bot .bubble.warn{background:var(--amber-bg);border-color:#F0DBA8;color:#7A4B00;}
+  .row.bot .bubble.good{background:var(--green-bg);border-color:#B9E4C3;color:#14532D;}
+
+  .typing{display:flex;gap:4px;padding:12px 14px;}
+  .typing span{width:6px;height:6px;border-radius:50%;background:#A0AEC0;animation:blink 1.2s infinite;}
+  .typing span:nth-child(2){animation-delay:.2s;}
+  .typing span:nth-child(3){animation-delay:.4s;}
+  @keyframes blink{0%,80%,100%{opacity:.25;}40%{opacity:1;}}
+
+  .quick-replies{display:flex;flex-wrap:wrap;gap:8px;padding:2px 16px 10px;}
+  .quick-replies button{
+    border:1.5px solid var(--navy);
+    color:var(--navy);
+    background:#fff;
+    padding:7px 12px;
+    border-radius:16px;
+    font-size:12.5px;
+    cursor:pointer;
+    transition:.15s;
+  }
+  .quick-replies button:hover{background:var(--navy);color:#fff;}
+  .quick-replies button.danger{border-color:var(--red);color:var(--red);}
+  .quick-replies button.danger:hover{background:var(--red);color:#fff;}
+
+  form#inputBar{
+    display:flex;
+    gap:8px;
+    padding:12px;
+    border-top:1px solid #E2E8F0;
+    background:#fff;
+  }
+  form#inputBar input{
+    flex:1;
+    border:1px solid #CBD5E0;
+    border-radius:20px;
+    padding:10px 14px;
+    font-size:13.5px;
+    outline:none;
+  }
+  form#inputBar input:focus{border-color:var(--teal);}
+  form#inputBar button{
+    background:var(--navy);
+    color:#fff;
+    border:none;
+    width:42px;height:42px;
+    border-radius:50%;
+    cursor:pointer;
+    font-size:16px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  form#inputBar button:hover{background:var(--teal);}
+
+  .hint{
+    font-size:10.5px;
+    color:#718096;
+    text-align:center;
+    padding:4px 10px 8px;
+  }
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <header>
+    <div class="avatar">📦</div>
+    <div class="info">
+      <h1>eGain TrackBot</h1>
+      <p>Online now</p>
+    </div>
+  </header>
+
+  <div id="chat"></div>
+  <div id="quickReplyZone" class="quick-replies"></div>
+  <div class="hint">Try sample IDs: <b>EG100234</b> (delivered), <b>EG100987</b> (in transit), <b>EG100555</b> (delayed), <b>EG100777</b> (lost) — or type "menu" anytime.</div>
+  <form id="inputBar">
+    <input id="userInput" type="text" placeholder="Type a message…" autocomplete="off" />
+    <button type="submit">➤</button>
+  </form>
+</div>
+
+<script>
+/* =========================================================================
+   eGain TrackBot — a small decision-tree chatbot for lost package tracking.
+   State machine lives in `state`. Each state renders bot message(s) +
+   optional quick-reply buttons, and defines how free-text input is parsed.
+   ========================================================================= */
+
+// ---- Mock "shipment database" -------------------------------------------
+const SHIPMENTS = {
+  "EG100234": { status: "delivered", date: "July 21, 2026, 2:14 PM", location: "front porch", carrier: "eGain Express" },
+  "EG100987": { status: "in_transit", eta: "July 25, 2026", location: "Reno, NV distribution center", carrier: "eGain Express" },
+  "EG100555": { status: "delayed", eta: "July 27, 2026 (was July 23)", reason: "weather disruption at regional hub", carrier: "eGain Express" },
+  "EG100777": { status: "lost", lastSeen: "Denver, CO hub on July 18, 2026", carrier: "eGain Express" },
+  "EG100111": { status: "out_for_delivery", eta: "today by 8 PM", location: "on the truck, 4 stops away", carrier: "eGain Express" }
+};
+
+// ---- Conversation state ---------------------------------------------------
+let step = "ASK_TRACKING";     // current node in the decision tree
+let formatRetries = 0;
+let lastShipment = null;
+let lastId = null;
+
+const chat = document.getElementById("chat");
+const quickZone = document.getElementById("quickReplyZone");
+const form = document.getElementById("inputBar");
+const input = document.getElementById("userInput");
+
+function scrollBottom(){ chat.scrollTop = chat.scrollHeight; }
+
+function addBubble(text, who, variant){
+  const row = document.createElement("div");
+  row.className = "row " + who;
+  const b = document.createElement("div");
+  b.className = "bubble" + (variant ? " " + variant : "");
+  b.textContent = text;
+  row.appendChild(b);
+  chat.appendChild(row);
+  scrollBottom();
+}
+
+function botSay(text, variant, delay=450){
+  return new Promise(resolve=>{
+    const row = document.createElement("div");
+    row.className = "row bot";
+    const typing = document.createElement("div");
+    typing.className = "bubble";
+    typing.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
+    row.appendChild(typing);
+    chat.appendChild(row);
+    scrollBottom();
+    setTimeout(()=>{
+      row.remove();
+      addBubble(text, "bot", variant);
+      resolve();
+    }, delay);
+  });
+}
+
+function setQuickReplies(options){
+  quickZone.innerHTML = "";
+  options.forEach(opt=>{
+    const btn = document.createElement("button");
+    btn.textContent = opt.label;
+    if(opt.danger) btn.classList.add("danger");
+    btn.onclick = ()=> handleUserMessage(opt.value ?? opt.label, true);
+    quickZone.appendChild(btn);
+  });
+}
+
+function clearQuickReplies(){ quickZone.innerHTML = ""; }
+
+// Detects a directly-typed tracking number (e.g. "EG100111") so states that
+// are expecting a yes/no or menu choice can still recognize it instead of
+// falling through to the fallback message.
+function looksLikeTrackingNumber(raw){
+  const cleaned = raw.trim().toUpperCase().replace(/\s+/g,"");
+  return /^EG\d{6}$/.test(cleaned);
+}
+
+// Always-available commands, checked before any state-specific parsing.
+function checkGlobalCommands(raw){
+  const t = raw.trim().toLowerCase();
+  if(["menu","restart","start over","help"].includes(t)){
+    return "RESTART";
+  }
+  if(["agent","human","representative","talk to a human","talk to human"].includes(t)){
+    return "HUMAN";
+  }
+  return null;
+}
+
+async function handleUserMessage(raw, fromButton=false){
+  if(!raw || !raw.trim()) return;
+  addBubble(raw, "user");
+  clearQuickReplies();
+  input.value = "";
+
+  const globalCmd = checkGlobalCommands(raw);
+  if(globalCmd === "RESTART"){
+    await botSay("No problem — let's start fresh! 🔄");
+    return goTo("ASK_TRACKING");
+  }
+  if(globalCmd === "HUMAN"){
+    await botSay("Connecting you with a live support specialist now. Estimated wait: 2 minutes. 🧑‍💼", "warn");
+    return setQuickReplies([{label:"⬅ Back to bot", value:"menu"}]);
+  }
+
+  switch(step){
+    case "ASK_TRACKING":
+      return processTrackingInput(raw);
+    case "NOT_FOUND_MENU":
+      return processNotFoundMenu(raw, fromButton);
+    case "DELIVERED_CONFIRM":
+      return processDeliveredConfirm(raw, fromButton);
+    case "ANYTHING_ELSE":
+      return processAnythingElse(raw, fromButton);
+    case "LOST_CLAIM":
+      return processLostClaim(raw, fromButton);
+    default:
+      return fallback();
+  }
+}
+
+// ---- ERROR HANDLING #3 (global fallback for unparsable input) -----------
+async function fallback(){
+  await botSay("Hmm, I'm not quite sure I understood that 🤔 Here are some options:", "warn");
+  renderQuickRepliesForCurrentStep();
+}
+
+function renderQuickRepliesForCurrentStep(){
+  if(step === "ASK_TRACKING"){
+    setQuickReplies([
+      {label:"EG100234 (example)", value:"EG100234"},
+      {label:"🧑‍💼 Talk to a human", value:"agent", danger:false}
+    ]);
+  } else if(step === "NOT_FOUND_MENU"){
+    setQuickReplies([
+      {label:"Try another number", value:"retry"},
+      {label:"Search by order email", value:"email"},
+      {label:"🧑‍💼 Contact support", value:"agent"}
+    ]);
+  } else if(step === "DELIVERED_CONFIRM"){
+    setQuickReplies([{label:"Yes, I got it", value:"yes"},{label:"No, I didn't", value:"no"}]);
+  } else if(step === "ANYTHING_ELSE"){
+    setQuickReplies([{label:"Track another package", value:"yes"},{label:"No, that's all", value:"no"}]);
+  } else if(step === "LOST_CLAIM"){
+    setQuickReplies([{label:"📝 File a claim", value:"claim"},{label:"🧑‍💼 Talk to a human", value:"agent"}]);
+  }
+}
+
+// ---- Step: ASK_TRACKING ---------------------------------------------------
+async function processTrackingInput(raw){
+  const cleaned = raw.trim().toUpperCase().replace(/\s+/g,"");
+  const trackingPattern = /^EG\d{6}$/; // e.g. EG100234
+
+  if(!trackingPattern.test(cleaned)){
+    // ERROR HANDLING #1: invalid format
+    formatRetries++;
+    if(formatRetries >= 3){
+      await botSay("That still doesn't match a valid tracking number. Let's get you a human's help instead. 🧑‍💼", "error");
+      setQuickReplies([{label:"🧑‍💼 Talk to a human", value:"agent"},{label:"🔄 Start over", value:"menu"}]);
+      return;
+    }
+    await botSay(
+      `I couldn't recognize that as a tracking number (attempt ${formatRetries}/3).\nTracking numbers look like: EG100234 — two letters followed by 6 digits. Could you double-check and re-enter it?`,
+      "error"
+    );
+    return;
+  }
+
+  formatRetries = 0;
+  const shipment = SHIPMENTS[cleaned];
+
+  if(!shipment){
+    // ERROR HANDLING #2: valid format, but not found
+    lastId = cleaned;
+    await botSay(`I looked up ${cleaned}, but I couldn't find any record of it in our system. That can happen if the number was mistyped or the order hasn't shipped yet.`, "error");
+    return goTo("NOT_FOUND_MENU");
+  }
+
+  lastShipment = shipment;
+  lastId = cleaned;
+  await presentShipmentStatus(cleaned, shipment);
+}
+
+async function presentShipmentStatus(id, s){
+  await botSay(`Found it! Here's the latest on ${id}:`);
+  if(s.status === "delivered"){
+    await botSay(`✅ Delivered on ${s.date} at the ${s.location}, via ${s.carrier}.`, "good");
+    await botSay("Did you actually receive the package?");
+    return goTo("DELIVERED_CONFIRM");
+  }
+  if(s.status === "out_for_delivery"){
+    await botSay(`🚚 Out for delivery — arriving ${s.eta}. Currently: ${s.location}.`, "good");
+    await botSay("Want me to text you the moment it's delivered?");
+    setQuickReplies([{label:"Yes, notify me", value:"yes"},{label:"No thanks", value:"no"}]);
+    return goTo("ANYTHING_ELSE", true);
+  }
+  if(s.status === "in_transit"){
+    await botSay(`📍 In transit — currently at ${s.location}. Estimated delivery: ${s.eta}.`, "good");
+    await botSay("I can send delivery notifications to your phone or email if you'd like.");
+    return goTo("ANYTHING_ELSE");
+  }
+  if(s.status === "delayed"){
+    await botSay(`⏳ This shipment is delayed. New estimated delivery: ${s.eta}.\nReason: ${s.reason}.`, "warn");
+    await botSay("I'm sorry for the inconvenience — I can notify you as soon as it's moving again.");
+    return goTo("ANYTHING_ELSE");
+  }
+  if(s.status === "lost"){
+    await botSay(`⚠️ I'm sorry — this package hasn't scanned in since it was last seen at ${s.lastSeen}. This looks like a lost-package exception.`, "error");
+    await botSay("I can file a claim on your behalf, or connect you with a specialist right now. Which would you prefer?");
+    setQuickReplies([{label:"📝 File a claim", value:"claim"},{label:"🧑‍💼 Talk to a human", value:"agent"}]);
+    return goTo("LOST_CLAIM", true); // quick replies already set above
+  }
+}
+
+// ---- Step: NOT_FOUND_MENU --------------------------------------------------
+async function processNotFoundMenu(raw, fromButton){
+  const t = raw.trim().toLowerCase();
+  if(looksLikeTrackingNumber(raw)){
+    // user re-typed a new tracking number directly instead of picking "retry" first
+    await goTo("ASK_TRACKING", true);
+    return processTrackingInput(raw);
+  }
+  if(t.includes("retry") || t.includes("another")){
+    await botSay("Sure — go ahead and enter the tracking number again.");
+    return goTo("ASK_TRACKING");
+  }
+  if(t.includes("email")){
+    await botSay("Got it — in the full version I'd ask for your order email here and look up the shipment that way. For this prototype, try one of the sample IDs below instead!");
+    return goTo("ASK_TRACKING");
+  }
+  if(t.includes("agent") || t.includes("support") || t.includes("human")){
+    await botSay("Connecting you with a live support specialist now. Estimated wait: 2 minutes. 🧑‍💼", "warn");
+    return;
+  }
+  return fallback();
+}
+
+// ---- Step: DELIVERED_CONFIRM -----------------------------------------------
+async function processDeliveredConfirm(raw, fromButton){
+  const t = raw.trim().toLowerCase();
+  if(looksLikeTrackingNumber(raw)){
+    // user jumped straight to a new tracking number instead of answering yes/no
+    await goTo("ASK_TRACKING", true);
+    return processTrackingInput(raw);
+  }
+  if(t.includes("yes") || t.includes("got")){
+    await botSay("Wonderful, glad it arrived safely! 🎉");
+    return goTo("ANYTHING_ELSE");
+  }
+  if(t.includes("no") || t.includes("didn't") || t.includes("did not")){
+    const caseNum = "CASE-" + Math.floor(10000 + Math.random()*89999);
+    await botSay(`I'm sorry to hear that. I've opened an "item not received" investigation — case number ${caseNum}. Our team will follow up within 24 hours.`, "error");
+    return goTo("ANYTHING_ELSE");
+  }
+  return fallback();
+}
+
+// ---- Step: ANYTHING_ELSE ---------------------------------------------------
+async function processAnythingElse(raw, fromButton){
+  const t = raw.trim().toLowerCase();
+  if(looksLikeTrackingNumber(raw)){
+    // user jumped straight to a new tracking number instead of saying "yes" first
+    await goTo("ASK_TRACKING", true);
+    return processTrackingInput(raw);
+  }
+  if(t.includes("yes") || t.includes("another") || t.includes("track")){
+    await botSay("Great — what's the next tracking number?");
+    return goTo("ASK_TRACKING");
+  }
+  if(t.includes("no") || t.includes("that's all") || t.includes("thats all") || t.includes("nothing")){
+    await botSay("Thanks for chatting with eGain TrackBot — have a great day! 👋", "good");
+    clearQuickReplies();
+    step = "END";
+    return;
+  }
+  return fallback();
+}
+
+// ---- Step: LOST_CLAIM -------------------------------------------------
+async function processLostClaim(raw, fromButton){
+  const t = raw.trim().toLowerCase();
+  if(looksLikeTrackingNumber(raw)){
+    await goTo("ASK_TRACKING", true);
+    return processTrackingInput(raw);
+  }
+  if(t.includes("claim")){
+    const caseNum = "CLAIM-" + Math.floor(10000 + Math.random()*89999);
+    await botSay(`Done — I've filed a lost-package claim for ${lastId ?? "this shipment"}. Reference number: ${caseNum}. You'll get an email confirmation and a decision within 3-5 business days.`, "good");
+    return goTo("ANYTHING_ELSE");
+  }
+  if(t.includes("agent") || t.includes("human") || t.includes("support")){
+    await botSay("Connecting you with a live support specialist now. Estimated wait: 2 minutes. 🧑‍💼", "warn");
+    return;
+  }
+  return fallback();
+}
+
+// ---- Transition helper ------------------------------------------------
+async function goTo(newStep, skipQuickReplies=false){
+  step = newStep;
+  if(newStep === "ASK_TRACKING"){
+    formatRetries = 0;
+  }
+  if(!skipQuickReplies) renderQuickRepliesForCurrentStep();
+}
+
+// ---- Boot sequence ----------------------------------------------------
+async function boot(){
+  await botSay("Hi there! 👋 I'm TrackBot, your eGain shipping assistant.");
+  await botSay("I can help you locate a lost or delayed package. What's your tracking number? (format: EG######)");
+  renderQuickRepliesForCurrentStep();
+}
+
+form.addEventListener("submit", (e)=>{
+  e.preventDefault();
+  handleUserMessage(input.value);
+});
+
+boot();
+</script>
+</body>
+</html>
