@@ -8,7 +8,7 @@ delayed package.
 | File | Purpose |
 |---|---|
 | `index.html` | The full chatbot prototype (HTML + CSS + JS, no build step, no dependencies) |
-| `egain_trackbot_conversation_flow` | The conversation design / decision tree (open in a browser or image viewer) |
+| `egain_trackbot_conversation_flow.pdf` | The conversation design / decision tree (open in a browser or image viewer) |
 | `screenshots/` | Example conversations, including both error-handling paths |
 
 
